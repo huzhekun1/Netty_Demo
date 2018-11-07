@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!-- 引入配置 -->
+    <!-- 配置文件 -->
+    <bean id="propertyConfigurer"
+          class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <value>classpath:server/jdbc.properties</value>
+                <value>classpath:server/log4j.properties</value>
+            </list>
+        </property>
+    </bean>
+    <!-- 包扫描 -->
+    <context:annotation-config />
+    <context:component-scan base-package="com.chat.server"/>
+    <context:component-scan base-package="com.chat.common"/>
+
+    <bean id="mapperBeanNameGenerator" class="com.chat.common.core.utils.MapperBeanNameGenerator"/>
+
+    <!-- ==========================netty_chat数据的连接 Begin========================== -->
+
+    <bean id="dataSourceWrite_netty" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">
+        <!-- 基本属性driverClassName、 url、user、password -->
+        <property name="driverClassName" value="${db.driver}" />
+        <property name="url" value="${db.netty.master.url}" />
+        <property name="username" value="${db.netty.master.username}" />
+        <property name="password" value="${db.netty.master.password}" />
+        <!-- 配置初始化大小、最小、最大 -->
+        <!-- 通常来说，只需要修改initialSize、minIdle、maxActive -->
+        <property name="initialSize" value="${db.master.initialSize}" />
+        <property name="minIdle" value="${db.master.minIdle}" />
+        <property name="maxActive" value="${db.master.maxActive}" />
+        <!-- 配置获取连接等待超时的时间 -->
+        <property name="maxWait" value="${db.master.maxWait}" />
+        <!-- 默认值是 true ，当从连接池取连接时，验证这个连接是否有效 -->
+        <property name="testOnBorrow" value="true" />
+        <!-- 指明连接是否被空闲连接回收器(如果有)进行检验.如果检测失败,则连接将被从池中去除.
+        注意: 设置为true后如果要生效,validationQuery参数必须设置为非空字符串 -->
+        <property name="testWhileIdle" value="true" />
+        <!-- 默认值是 flase, 当从把该连接放回到连接池的时，验证这个连接是否有效 -->
+        <property name="testOnReturn" value="false" />
+        <!--用来验证从连接池取出的连接,在将连接返回给调用者之前.如果指定,则查询必须是一个SQL SELECT并且必须返回至少一行记录-->
+        <property name="validationQuery" value="SELECT 'x'" />
+        <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+        <property name="minEvictableIdleTimeMillis" value="30000" />
+        <property name="removeAbandoned" value="true" />
+        <property name="removeAbandonedTimeout" value="180" />
+        <!-- 关闭abanded连接时输出错误日志 -->
+        <property name="logAbandoned" value="${db.master.logAbandoned}" />
+        <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+        <property name="timeBetweenEvictionRunsMillis" value="60000" />
+        <property name="poolPreparedStatements" value="true" />
+        <property name="maxPoolPreparedStatementPerConnectionSize" value="50" />
+        <property name="filters" value="stat" />
+        <property name="proxyFilters">
+            <list>
+                <ref bean="logFilter" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="dataSourceRead_netty" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">
+        <!-- 基本属性driverClassName、 url、user、password -->
+        <property name="driverClassName" value="${db.driver}" />
+        <property name="url" value="${db.netty.slave.url}" />
+        <property name="username" value="${db.netty.slave.username}" />
+        <property name="password" value="${db.netty.slave.password}" />
+        <!-- 配置初始化大小、最小、最大 -->
+        <!-- 通常来说，只需要修改initialSize、minIdle、maxActive -->
+        <property name="initialSize" value="${db.slave.initialSize}" />
+        <property name="minIdle" value="${db.slave.minIdle}" />
+        <property name="maxActive" value="${db.slave.maxActive}" />
+        <!-- 配置获取连接等待超时的时间 -->
+        <property name="maxWait" value="${db.slave.maxWait}" />
+        <!-- 默认值是 true ，当从连接池取连接时，验证这个连接是否有效 -->
+        <property name="testOnBorrow" value="true" />
+        <!-- 指明连接是否被空闲连接回收器(如果有)进行检验.如果检测失败,则连接将被从池中去除.
+        注意: 设置为true后如果要生效,validationQuery参数必须设置为非空字符串 -->
+        <property name="testWhileIdle" value="true" />
+        <!-- 默认值是 flase, 当从把该连接放回到连接池的时，验证这个连接是否有效 -->
+        <property name="testOnReturn" value="false" />
+        <!--用来验证从连接池取出的连接,在将连接返回给调用者之前.如果指定,则查询必须是一个SQL SELECT并且必须返回至少一行记录-->
+        <property name="validationQuery" value="SELECT 1 " />
+        <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+        <property name="minEvictableIdleTimeMillis" value="30000" />
+        <!-- 超过时间限制是否回收 -->
+        <property name="removeAbandoned" value="true" />
+        <!-- 超时时间；单位为秒。180秒=3分钟 -->
+        <property name="removeAbandonedTimeout" value="180" />
+        <!-- 关闭abanded连接时输出错误日志 -->
+        <property name="logAbandoned" value="${db.slave.logAbandoned}" />
+        <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+        <property name="timeBetweenEvictionRunsMillis" value="60000" />
+        <property name="poolPreparedStatements" value="true" />
+        <property name="maxPoolPreparedStatementPerConnectionSize" value="50" />
+        <property name="filters" value="stat" />
+        <property name="proxyFilters">
+            <list>
+                <ref bean="logFilter" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="logFilter" class="com.alibaba.druid.filter.logging.Slf4jLogFilter">
+        <property name="statementExecutableSqlLogEnable" value="false" />
+    </bean>
+
+    <!-- spring和MyBatis完美整合，不需要mybatis的配置映射文件 -->
+    <bean id="sqlSessionFactoryWrite_netty" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSourceWrite_netty" />
+        <!-- 自动扫描mapping.xml文件 -->
+        <property name="mapperLocations" value="classpath:_mapper/write/**/*.xml"/>
+    </bean>
+
+    <bean id="sqlSessionFactoryRead_netty" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSourceRead_netty" />
+        <!-- 自动扫描mapping.xml文件 -->
+        <property name="mapperLocations" value="classpath:_mapper/read/**/*.xml"/>
+    </bean>
+
+    <!-- DAO接口所在包名，Spring会自动查找其下的类 -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.chat.common.dao.write" />
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryWrite_netty"/>
+        <property name="nameGenerator" ref="mapperBeanNameGenerator"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.chat.common.dao.read" />
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryRead_netty"/>
+        <property name="nameGenerator" ref="mapperBeanNameGenerator"/>
+    </bean>
+    <!-- ==========================netty_chat数据的连接 Finish========================== -->
+</beans>
